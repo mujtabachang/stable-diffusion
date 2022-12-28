@@ -1,5 +1,6 @@
 from ldm.modules.encoders.modules import FrozenCLIPEmbedder, BERTEmbedder
 from ldm.modules.embedding_manager import EmbeddingManager
+from ldm.invoke.globals import Globals
 
 import argparse, os
 from functools import partial
@@ -7,9 +8,9 @@ from functools import partial
 import torch
 
 def get_placeholder_loop(placeholder_string, embedder, use_bert):
-    
+
     new_placeholder   = None
-    
+
     while True:
         if new_placeholder is None:
             new_placeholder = input(f"Placeholder string {placeholder_string} was already used. Please enter a replacement string: ")
@@ -20,7 +21,7 @@ def get_placeholder_loop(placeholder_string, embedder, use_bert):
 
         if token is not None:
             return new_placeholder, token
-            
+
 def get_clip_token_for_string(tokenizer, string):
     batch_encoding = tokenizer(
         string,
@@ -36,7 +37,7 @@ def get_clip_token_for_string(tokenizer, string):
 
     if torch.count_nonzero(tokens - 49407) == 2:
         return tokens[0, 1]
-    
+
     return None
 
 def get_bert_token_for_string(tokenizer, string):
@@ -52,9 +53,16 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "--manager_ckpts", 
-        type=str, 
-        nargs="+", 
+        "--root_dir",
+        type=str,
+        default='.',
+        help="Path to the InvokeAI install directory containing 'models', 'outputs' and 'configs'."
+    )
+
+    parser.add_argument(
+        "--manager_ckpts",
+        type=str,
+        nargs="+",
         required=True,
         help="Paths to a set of embedding managers to be merged."
     )
@@ -73,6 +81,7 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+    Globals.root=args.root_dir
 
     if args.use_bert:
         embedder = BERTEmbedder(n_embed=1280, n_layer=32).cuda()
@@ -81,7 +90,7 @@ if __name__ == "__main__":
 
     EmbeddingManager = partial(EmbeddingManager, embedder, ["*"])
 
-    string_to_token_dict = {}    
+    string_to_token_dict = {}
     string_to_param_dict = torch.nn.ParameterDict()
 
     placeholder_to_src = {}
